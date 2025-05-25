@@ -1,0 +1,9 @@
+# netlify.toml
+
+[build]
+  command = "npm run build"  # Or your specific build command if different
+  publish = ".next"          # Default publish directory for Next.js projects
+
+# Plugin to ensure Next.js sites build and run correctly on Netlify
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
