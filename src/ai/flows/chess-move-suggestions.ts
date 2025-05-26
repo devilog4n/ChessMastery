@@ -31,6 +31,7 @@ export async function chessMoveSuggestions(input: ChessMoveSuggestionsInput): Pr
   return chessMoveSuggestionsFlow(input);
 }
 
+// Define the prompt with updated configuration to include both safety settings and generation parameters
 const chessMoveSuggestionsPrompt = ai.definePrompt({
   name: 'chessMoveSuggestionsPrompt',
   input: {schema: ChessMoveSuggestionsInputSchema},
@@ -56,6 +57,7 @@ Sugira um movimento que seja simples de entender.
 Forneça o movimento sugerido, seu raciocínio e, opcionalmente, alguns movimentos alternativos.
 `,
   config: {
+    // Safety settings for content moderation
     safetySettings: [
       {
         category: 'HARM_CATEGORY_HATE_SPEECH',
@@ -74,6 +76,11 @@ Forneça o movimento sugerido, seu raciocínio e, opcionalmente, alguns moviment
         threshold: 'BLOCK_LOW_AND_ABOVE',
       },
     ],
+    // Default generation parameters
+    temperature: 0.4,
+    topP: 0.85,
+    topK: 20,
+    maxOutputTokens: 1024,
   },
 });
 
@@ -84,7 +91,25 @@ const chessMoveSuggestionsFlow = ai.defineFlow(
     outputSchema: ChessMoveSuggestionsOutputSchema,
   },
   async input => {
-    const {output} = await chessMoveSuggestionsPrompt(input);
-    return output!;
+    console.log('[CHESS AI] Starting chess move suggestions flow with input:', JSON.stringify(input));
+    try {
+      console.log(`[CHESS AI] Using difficulty level: ${input.difficultyLevel}`);
+      console.log(`[CHESS AI] Board state: ${input.currentBoardState}`);
+      console.log(`[CHESS AI] Move history: ${input.moveHistory || 'None'}`);
+      
+      console.log('[CHESS AI] Calling AI with configured prompt');
+      const result = await chessMoveSuggestionsPrompt(input);
+      
+      if (!result.output) {
+        console.error('[CHESS AI] No output returned from AI model');
+        throw new Error('No output returned from AI model');
+      }
+      
+      console.log('[CHESS AI] Successfully generated move suggestions:', JSON.stringify(result.output));
+      return result.output;
+    } catch (error) {
+      console.error('[CHESS AI] Error generating move suggestions:', error);
+      throw error;
+    }
   }
 );

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import type { BoardState, PlayerColor, GameMode, Difficulty, Move, GameState, AiSuggestion, Piece, Square as ChessSquare } from '@/types/chess';
 import { getInitialBoardState, boardToFEN, squareToNotation, isValidMove as isBasicMoveValid, checkGameOver } from '@/lib/chess-logic';
 import { chessMoveSuggestions } from '@/ai/flows/chess-move-suggestions';
@@ -94,7 +94,7 @@ export function useChessGame(initialMode: GameMode, initialDifficulty?: Difficul
     const piece = from.piece;
     if (!piece) return;
 
-    const newBoardState = gameState.boardState.map(row => row.map(sq => ({ ...sq, piece: sq.piece ? {...sq.piece} : null })));
+    const newBoardState: BoardState = gameState.boardState.map((row: ChessSquare[]) => row.map((sq: ChessSquare) => ({ ...sq, piece: sq.piece ? {...sq.piece} : null })));
     newBoardState[to.row][to.col].piece = piece;
     newBoardState[from.row][from.col].piece = null;
 
@@ -109,7 +109,7 @@ export function useChessGame(initialMode: GameMode, initialDifficulty?: Difficul
 
     const { isGameOver: newIsGameOver, winner: newWinner } = checkGameOver(newBoardState);
 
-    setGameState(prev => ({
+    setGameState((prev: GameState) => ({
       ...prev,
       boardState: newBoardState,
       currentPlayer: prev.currentPlayer === 'white' ? 'black' : 'white',
@@ -120,10 +120,15 @@ export function useChessGame(initialMode: GameMode, initialDifficulty?: Difficul
       aiSuggestions: null, 
     }));
 
-    if (newIsGameOver && newWinner && newWinner !== 'draw') {
-      toast({ title: "Fim de Jogo!", description: `${playerDisplayName(newWinner)} vencem!` });
-    } else if (newIsGameOver) {
-      toast({ title: "Fim de Jogo!", description: "É um empate!" });
+    if (newIsGameOver) {
+      // Cast newWinner to the correct type (PlayerColor | 'draw' | null) to satisfy TypeScript
+      const gameResult = newWinner as (PlayerColor | 'draw' | null);
+      
+      if (gameResult === 'draw') {
+        toast({ title: "Fim de Jogo!", description: "É um empate!" });
+      } else if (gameResult) {
+        toast({ title: "Fim de Jogo!", description: `${playerDisplayName(gameResult)} vencem!` });
+      }
     }
 
   }, [gameState.isGameOver, gameState.boardState, toast]); // Removed gameState.currentPlayer as it's derived from prev
@@ -141,10 +146,10 @@ export function useChessGame(initialMode: GameMode, initialDifficulty?: Difficul
           return;
         }
       }
-      setGameState(prev => ({ ...prev, selectedSquare: null }));
+      setGameState((prev: GameState) => ({ ...prev, selectedSquare: null }));
     } else {
       if (clickedSquare.piece && clickedSquare.piece.color === gameState.currentPlayer) {
-        setGameState(prev => ({ ...prev, selectedSquare: { row, col } }));
+        setGameState((prev: GameState) => ({ ...prev, selectedSquare: { row, col } }));
       }
     }
   }, [gameState.isGameOver, gameState.boardState, gameState.selectedSquare, gameState.currentPlayer, makeMove]);
@@ -157,7 +162,7 @@ export function useChessGame(initialMode: GameMode, initialDifficulty?: Difficul
     }
     
     const fen = boardToFEN(gameState.boardState, gameState.currentPlayer);
-    const history = gameState.moveHistory.map(m => m.notation).join(' ');
+    const history = gameState.moveHistory.map((m: Move) => m.notation).join(' ');
     
     try {
       const suggestions = await chessMoveSuggestions({
@@ -165,18 +170,18 @@ export function useChessGame(initialMode: GameMode, initialDifficulty?: Difficul
         difficultyLevel: gameState.difficulty || 'medium', 
         moveHistory: history,
       });
-      setGameState(prev => ({ ...prev, aiSuggestions: suggestions }));
+      setGameState((prev: GameState) => ({ ...prev, aiSuggestions: suggestions }));
       toast({title: "Tutor IA", description: "Sugestões recebidas!"});
     } catch (error) {
       console.error("Erro ao obter sugestões da IA:", error);
       toast({title: "Erro no Tutor IA", description: "Não foi possível buscar sugestões.", variant: "destructive"});
-      setGameState(prev => ({ ...prev, aiSuggestions: null }));
+      setGameState((prev: GameState) => ({ ...prev, aiSuggestions: null }));
     }
   }, [gameState.isAiTutorEnabled, gameState.isGameOver, gameState.boardState, gameState.currentPlayer, gameState.moveHistory, gameState.difficulty, gameState.gameMode, toast]);
 
   const toggleAiTutor = useCallback(() => {
     const newIsEnabled = !gameState.isAiTutorEnabled;
-    setGameState(prev => ({ ...prev, isAiTutorEnabled: newIsEnabled, aiSuggestions: null }));
+    setGameState((prev: GameState) => ({ ...prev, isAiTutorEnabled: newIsEnabled, aiSuggestions: null }));
     toast({ title: "Tutor IA", description: `Tutor IA ${newIsEnabled ? 'habilitado' : 'desabilitado'}.` });
   }, [gameState.isAiTutorEnabled, toast]);
 
@@ -188,7 +193,7 @@ export function useChessGame(initialMode: GameMode, initialDifficulty?: Difficul
     ) {
       const makeAiMove = async () => {
         const fen = boardToFEN(gameState.boardState, gameState.currentPlayer);
-        const history = gameState.moveHistory.map(m => m.notation).join(' ');
+        const history = gameState.moveHistory.map((m: Move) => m.notation).join(' ');
         try {
           const suggestions = await chessMoveSuggestions({
             currentBoardState: fen,
@@ -201,7 +206,7 @@ export function useChessGame(initialMode: GameMode, initialDifficulty?: Difficul
             movesToTry.push(suggestions.suggestedMove);
           }
           if (suggestions.alternativeMoves) {
-            movesToTry.push(...suggestions.alternativeMoves.filter(m => typeof m === 'string'));
+            movesToTry.push(...suggestions.alternativeMoves.filter((m: unknown) => typeof m === 'string'));
           }
 
           let moveMade = false;
